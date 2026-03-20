@@ -48,7 +48,27 @@
 
       <div class="form-group">
         <label>Turma</label>
-        <input type="text" id="field-turma" placeholder="Ex: 9A, 8B, 7C"/>
+        <select id="field-turma" required>
+        <option value="">Selecione sua turma</option>
+        <optgroup label="1° Ano">
+          <option value="1A">1° Ano A</option>
+          <option value="1B">1° Ano B</option>
+          <option value="1C">1° Ano C</option>
+          <option value="1D">1° Ano D</option>
+        </optgroup>
+        <optgroup label="2° Ano">
+          <option value="2A">2° Ano A</option>
+          <option value="2B">2° Ano B</option>
+          <option value="2C">2° Ano C</option>
+          <option value="2D">2° Ano D</option>
+        </optgroup>
+        <optgroup label="3° Ano">
+          <option value="3A">3° Ano A</option>
+          <option value="3B">3° Ano B</option>
+          <option value="3C">3° Ano C</option>
+          <option value="3D">3° Ano D</option>
+        </optgroup>
+      </select>
       </div>
 
       <div class="form-group">
@@ -108,7 +128,8 @@
 
   function preencherPerfil(dados) {
     document.getElementById('field-nome').value  = dados.nome  || '';
-    document.getElementById('field-turma').value = dados.turma || '';
+    const selTurma = document.getElementById('field-turma');
+    selTurma.value = dados.turma || '';
     document.getElementById('field-email').value = dados.email || '';
     document.getElementById('nav-nome').textContent = dados.nome.split(' ')[0];
 
