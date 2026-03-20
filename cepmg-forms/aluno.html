@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CEPMG Forms – Painel do Aluno</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <div class="nav-icon">📋</div>
+    <span>CEPMG Forms</span>
+  </div>
+  <div class="navbar-info">
+    <div class="user-badge">
+      <div class="avatar" id="user-avatar">?</div>
+      <span class="user-name" id="user-nome">Carregando...</span>
+      <span class="badge badge-blue" id="user-turma"></span>
+    </div>
+    <button class="btn-logout" id="btn-logout">Sair</button>
+  </div>
+</nav>
+
+<!-- Conteúdo principal -->
+<div class="main-content">
+
+  <h2 class="section-title">📚 Meus Forms Disponíveis</h2>
+
+  <!-- Grid de cards -->
+  <div id="forms-container">
+    <!-- Cards injetados via JS -->
+    <div class="empty-state" id="loading-forms">
+      <div class="spinner" style="margin:0 auto 16px;"></div>
+      <p>Carregando forms disponíveis...</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast-container"></div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+</div>
+
+<script type="module">
+  import { verificarAuth, logout } from './js/auth.js';
+  import { listarFormsDoAluno }    from './js/firestore.js';
+
+  function toast(msg, tipo = 'info') {
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    const el = document.createElement('div');
+    el.className = `toast ${tipo}`;
+    el.innerHTML = `<span class="toast-icon">${icons[tipo]||'ℹ️'}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  // Verifica autenticação (apenas alunos)
+  let dadosAluno;
+  try {
+    const { dados } = await verificarAuth('aluno');
+    dadosAluno = dados;
+
+    // Preenche navbar
+    document.getElementById('user-nome').textContent = dados.nome.split(' ')[0];
+    document.getElementById('user-avatar').textContent = dados.nome.charAt(0).toUpperCase();
+    document.getElementById('user-turma').textContent = dados.turma || 'Sem turma';
+
+    // Carrega os forms
+    await carregarForms(dados);
+
+  } catch (e) {
+    window.location.href = 'index.html';
+  }
+
+  async function carregarForms(dados) {
+    const container = document.getElementById('forms-container');
+    try {
+      const forms = await listarFormsDoAluno(dados.id, dados.turma);
+
+      if (forms.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h3>Nenhum form disponível no momento</h3>
+            <p>Aguarde seu professor liberar atividades para você.</p>
+          </div>`;
+        return;
+      }
+
+      const icones = ['📝', '📊', '🗒️', '📋', '✏️', '📐', '🔬', '📖', '🧪', '🎯'];
+      container.innerHTML = `<div class="forms-grid">${
+        forms.map((f, i) => `
+          <div class="form-card">
+            <div class="form-card-header">
+              <div class="form-icon">${icones[i % icones.length]}</div>
+              <h3>${escHtml(f.titulo)}</h3>
+            </div>
+            <div class="form-card-body">
+              <p>${escHtml(f.descricao || 'Clique para acessar este formulário.')}</p>
+              <a href="${escHtml(f.link)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                Acessar Form ↗
+              </a>
+            </div>
+          </div>
+        `).join('')
+      }</div>`;
+
+    } catch (err) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <h3>Erro ao carregar forms</h3>
+        <p>Tente recarregar a página.</p>
+      </div>`;
+    }
+  }
+
+  document.getElementById('btn-logout').addEventListener('click', logout);
+
+  function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+
+</body>
+</html>

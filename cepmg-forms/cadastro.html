@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CEPMG Forms – Cadastro</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>"/>
+</head>
+<body>
+
+<div class="auth-container">
+  <div class="auth-card">
+
+    <div class="auth-logo">
+      <div class="logo-icon">🎓</div>
+      <h1>Criar Conta</h1>
+      <p>Cadastro exclusivo para alunos</p>
+    </div>
+
+    <form id="form-cadastro" novalidate>
+
+      <div class="form-group">
+        <label for="nome">Nome completo</label>
+        <input type="text" id="nome" placeholder="Seu nome completo" required autocomplete="name"/>
+      </div>
+
+      <div class="form-group">
+        <label for="turma">Turma</label>
+        <input type="text" id="turma" placeholder="Ex: 9A, 8B, 7C" required/>
+      </div>
+
+      <div class="form-group">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com" required autocomplete="email"/>
+      </div>
+
+      <div class="form-group">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" placeholder="Mínimo 6 caracteres" required autocomplete="new-password" minlength="6"/>
+      </div>
+
+      <div class="form-group">
+        <label for="confirma-senha">Confirmar senha</label>
+        <input type="password" id="confirma-senha" placeholder="Repita a senha" required autocomplete="new-password"/>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="btn-cadastrar">
+        Criar conta
+      </button>
+
+    </form>
+
+    <div class="divider">ou</div>
+
+    <button class="btn btn-google" id="btn-google-cadastro">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"/>
+      Cadastrar com Google
+    </button>
+
+    <div class="auth-footer">
+      Já tem conta? <a href="index.html">Fazer login</a>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <p style="color:#1a56db;font-weight:600;">Criando conta...</p>
+</div>
+
+<!-- Modal: pedir turma para login Google -->
+<div class="modal-overlay" id="modal-turma-google">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Qual é sua turma?</h3>
+    </div>
+    <div class="modal-body">
+      <p style="color:#64748b;margin-bottom:16px;font-size:14px;">Para finalizar seu cadastro via Google, informe sua turma:</p>
+      <div class="form-group">
+        <label for="turma-google">Turma</label>
+        <input type="text" id="turma-google" placeholder="Ex: 9A, 8B, 7C"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btn-confirmar-turma" style="width:auto">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { cadastrarAluno, loginGoogle, getDadosUsuario } from './js/auth.js';
+  import { db } from './js/firebase-config.js';
+  import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const loading = document.getElementById('loading');
+  const show = () => loading.classList.add('active');
+  const hide = () => loading.classList.remove('active');
+
+  function toast(msg, tipo = 'info') {
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    const el = document.createElement('div');
+    el.className = `toast ${tipo}`;
+    el.innerHTML = `<span class="toast-icon">${icons[tipo]||'ℹ️'}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 4500);
+  }
+
+  // Cadastro email/senha
+  document.getElementById('form-cadastro').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nome   = document.getElementById('nome').value.trim();
+    const turma  = document.getElementById('turma').value.trim().toUpperCase();
+    const email  = document.getElementById('email').value.trim();
+    const senha  = document.getElementById('senha').value;
+    const conf   = document.getElementById('confirma-senha').value;
+
+    if (!nome || !turma || !email || !senha || !conf)
+      return toast('Preencha todos os campos.', 'warning');
+    if (senha.length < 6)
+      return toast('A senha deve ter pelo menos 6 caracteres.', 'warning');
+    if (senha !== conf)
+      return toast('As senhas não coincidem.', 'warning');
+
+    show();
+    try {
+      await cadastrarAluno({ nome, email, senha, turma });
+      toast('Conta criada com sucesso! Redirecionando...', 'success');
+      setTimeout(() => window.location.href = 'aluno.html', 1500);
+    } catch (err) {
+      hide();
+      const msgs = {
+        'auth/email-already-in-use': 'Este e-mail já está em uso.',
+        'auth/invalid-email': 'E-mail inválido.',
+        'auth/weak-password': 'Senha muito fraca.',
+      };
+      toast(msgs[err.code] || 'Erro ao criar conta.', 'error');
+    }
+  });
+
+  // Cadastro com Google
+  let userGoogleTemp = null;
+
+  document.getElementById('btn-google-cadastro').addEventListener('click', async () => {
+    show();
+    try {
+      const user = await loginGoogle('aluno');
+      userGoogleTemp = user;
+      const dados = await getDadosUsuario(user.uid);
+      hide();
+
+      // Se já tem turma, vai direto
+      if (dados && dados.turma) {
+        window.location.href = 'aluno.html';
+      } else {
+        // Pede a turma
+        document.getElementById('modal-turma-google').classList.add('active');
+      }
+    } catch (err) {
+      hide();
+      toast('Erro ao cadastrar com Google.', 'error');
+    }
+  });
+
+  document.getElementById('btn-confirmar-turma').addEventListener('click', async () => {
+    const turma = document.getElementById('turma-google').value.trim().toUpperCase();
+    if (!turma) return toast('Informe sua turma.', 'warning');
+    if (!userGoogleTemp) return;
+
+    show();
+    try {
+      await updateDoc(doc(db, 'usuarios', userGoogleTemp.uid), { turma });
+      toast('Cadastro concluído!', 'success');
+      setTimeout(() => window.location.href = 'aluno.html', 1200);
+    } catch (err) {
+      hide();
+      toast('Erro ao salvar turma.', 'error');
+    }
+  });
+</script>
+
+</body>
+</html>

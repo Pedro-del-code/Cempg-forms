@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CEPMG Forms – Painel Admin</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏫</text></svg>"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <div class="nav-icon">📋</div>
+    <span>CEPMG Forms</span>
+  </div>
+  <div class="navbar-info">
+    <div class="user-badge">
+      <div class="avatar">👨‍🏫</div>
+      <span class="user-name" id="admin-nome">Professor</span>
+      <span class="badge badge-blue">Admin</span>
+    </div>
+    <button class="btn-logout" id="btn-logout">Sair</button>
+  </div>
+</nav>
+
+<!-- Conteúdo -->
+<div class="main-content">
+
+  <!-- Estatísticas -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card">
+      <div class="stat-num" id="stat-forms">—</div>
+      <div class="stat-label">Forms Criados</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-alunos">—</div>
+      <div class="stat-label">Alunos Cadastrados</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="stat-liberacoes">—</div>
+      <div class="stat-label">Liberações Ativas</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-forms">📋 Forms</button>
+    <button class="tab-btn" data-tab="tab-alunos">🎓 Alunos</button>
+  </div>
+
+  <!-- Tab: Forms -->
+  <div class="tab-panel active" id="tab-forms">
+    <div class="card">
+      <div class="card-header">
+        <h2>📋 Gerenciar Forms</h2>
+        <button class="btn btn-primary" style="width:auto" id="btn-novo-form">+ Novo Form</button>
+      </div>
+      <div class="card-body">
+        <div class="table-wrapper">
+          <table id="tabela-forms">
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Descrição</th>
+                <th>Link</th>
+                <th>Liberações</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-forms">
+              <tr><td colspan="5" style="text-align:center;padding:40px;color:#64748b;">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Alunos -->
+  <div class="tab-panel" id="tab-alunos">
+    <div class="card">
+      <div class="card-header">
+        <h2>🎓 Alunos Cadastrados</h2>
+      </div>
+      <div class="card-body">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>E-mail</th>
+                <th>Turma</th>
+                <th>Cadastro</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-alunos">
+              <tr><td colspan="4" style="text-align:center;padding:40px;color:#64748b;">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ MODALS ============ -->
+
+<!-- Modal: Criar/Editar Form -->
+<div class="modal-overlay" id="modal-form">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-form-titulo">Novo Form</h3>
+      <button class="modal-close" data-close="modal-form">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-form-id"/>
+      <div class="form-group">
+        <label>Título *</label>
+        <input type="text" id="field-titulo" placeholder="Ex: Avaliação de Matemática"/>
+      </div>
+      <div class="form-group">
+        <label>Link do Google Forms *</label>
+        <input type="url" id="field-link" placeholder="https://forms.gle/..."/>
+      </div>
+      <div class="form-group">
+        <label>Descrição</label>
+        <textarea id="field-descricao" placeholder="Descreva brevemente este form..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" data-close="modal-form">Cancelar</button>
+      <button class="btn btn-primary" style="width:auto" id="btn-salvar-form">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Liberar Form -->
+<div class="modal-overlay" id="modal-liberar">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Liberar Form</h3>
+      <button class="modal-close" data-close="modal-liberar">×</button>
+    </div>
+    <div class="modal-body">
+      <p id="liberar-form-nome" style="font-weight:700;margin-bottom:16px;color:#1e293b;"></p>
+      <input type="hidden" id="liberar-form-id"/>
+
+      <div class="form-group">
+        <label>Liberar para</label>
+        <select id="tipo-liberacao">
+          <option value="todos">Todos os alunos</option>
+          <option value="turma">Uma turma específica</option>
+          <option value="aluno">Um aluno específico</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="grupo-turma" style="display:none">
+        <label>Turma</label>
+        <select id="select-turma">
+          <option value="">Carregando turmas...</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="grupo-aluno" style="display:none">
+        <label>Aluno</label>
+        <select id="select-aluno">
+          <option value="">Carregando alunos...</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" data-close="modal-liberar">Cancelar</button>
+      <button class="btn btn-success" style="width:auto" id="btn-confirmar-liberar">✅ Liberar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Bloquear Liberações -->
+<div class="modal-overlay" id="modal-bloquear">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Bloquear Liberações</h3>
+      <button class="modal-close" data-close="modal-bloquear">×</button>
+    </div>
+    <div class="modal-body">
+      <p id="bloquear-form-nome" style="font-weight:700;margin-bottom:16px;color:#1e293b;"></p>
+      <div id="lista-liberacoes-ativas">Carregando...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" data-close="modal-bloquear">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar Exclusão -->
+<div class="modal-overlay" id="modal-excluir">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>⚠️ Confirmar Exclusão</h3>
+      <button class="modal-close" data-close="modal-excluir">×</button>
+    </div>
+    <div class="modal-body">
+      <p>Tem certeza que deseja excluir o form <strong id="excluir-form-nome"></strong>?</p>
+      <p style="color:#ef4444;font-size:13px;margin-top:8px;">Esta ação não pode ser desfeita e também remove todas as liberações relacionadas.</p>
+      <input type="hidden" id="excluir-form-id"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" data-close="modal-excluir">Cancelar</button>
+      <button class="btn btn-danger" style="width:auto" id="btn-confirmar-excluir">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast-container"></div>
+
+<script type="module">
+  import { verificarAuth, logout } from './js/auth.js';
+  import {
+    criarForm, listarForms, atualizarForm, excluirForm,
+    liberarForm, listarLiberacoesDoForm, bloquearLiberacao,
+    listarAlunos, listarTurmas
+  } from './js/firestore.js';
+
+  // ---- Toast ----
+  function toast(msg, tipo = 'info') {
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    const el = document.createElement('div');
+    el.className = `toast ${tipo}`;
+    el.innerHTML = `<span class="toast-icon">${icons[tipo]}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 4500);
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ---- Auth check ----
+  let adminId;
+  try {
+    const { user, dados } = await verificarAuth('admin');
+    adminId = user.uid;
+    document.getElementById('admin-nome').textContent = dados.nome.split(' ')[0];
+  } catch(e) {
+    window.location.href = 'index.html';
+  }
+
+  // ---- State ----
+  let todosAlunos = [];
+  let todasTurmas = [];
+  let todosForms  = [];
+
+  // ---- Carregar tudo ----
+  async function carregarDados() {
+    [todosAlunos, todasTurmas, todosForms] = await Promise.all([
+      listarAlunos(), listarTurmas(), listarForms()
+    ]);
+
+    // Stats
+    document.getElementById('stat-forms').textContent    = todosForms.length;
+    document.getElementById('stat-alunos').textContent   = todosAlunos.length;
+
+    renderForms();
+    renderAlunos();
+    await contarLiberacoesAtivas();
+  }
+
+  async function contarLiberacoesAtivas() {
+    const { getDocs, collection, where, query } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const { db } = await import('./js/firebase-config.js');
+    const q = query(collection(db, 'liberacoes'), where('ativo','==',true));
+    const snap = await getDocs(q);
+    document.getElementById('stat-liberacoes').textContent = snap.size;
+  }
+
+  // ---- Render Forms ----
+  function renderForms() {
+    const tbody = document.getElementById('tbody-forms');
+    if (todosForms.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <h3>Nenhum form criado</h3>
+        <p>Clique em "+ Novo Form" para começar.</p>
+      </div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = todosForms.map(f => `
+      <tr>
+        <td><strong>${escHtml(f.titulo)}</strong></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.descricao||'—')}</td>
+        <td><a href="${escHtml(f.link)}" target="_blank" style="font-size:13px;">Ver link ↗</a></td>
+        <td id="lib-count-${f.id}"><span style="color:#64748b;font-size:12px;">...</span></td>
+        <td>
+          <div class="actions-cell">
+            <button class="btn btn-outline btn-sm" onclick="editarForm('${f.id}')">✏️ Editar</button>
+            <button class="btn btn-success btn-sm" onclick="abrirLiberar('${f.id}','${escHtml(f.titulo)}')">🔓 Liberar</button>
+            <button class="btn btn-warning btn-sm" onclick="abrirBloquear('${f.id}','${escHtml(f.titulo)}')">🔒 Bloquear</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmarExcluir('${f.id}','${escHtml(f.titulo)}')">🗑️</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    // Conta liberações por form em paralelo
+    todosForms.forEach(async f => {
+      const libs = await listarLiberacoesDoForm(f.id);
+      const el = document.getElementById(`lib-count-${f.id}`);
+      if (el) el.innerHTML = libs.length > 0
+        ? `<span class="badge badge-green">${libs.length} ativa${libs.length>1?'s':''}</span>`
+        : `<span class="badge badge-red">Nenhuma</span>`;
+    });
+  }
+
+  // ---- Render Alunos ----
+  function renderAlunos() {
+    const tbody = document.getElementById('tbody-alunos');
+    if (todosAlunos.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:#64748b;">Nenhum aluno cadastrado.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = todosAlunos.map(a => `
+      <tr>
+        <td><strong>${escHtml(a.nome)}</strong></td>
+        <td>${escHtml(a.email)}</td>
+        <td><span class="badge badge-blue">${escHtml(a.turma||'—')}</span></td>
+        <td style="font-size:13px;color:#64748b;">${a.dataCadastro?.toDate ? a.dataCadastro.toDate().toLocaleDateString('pt-BR') : '—'}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ---- Tabs ----
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---- Fechar Modals ----
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById(btn.dataset.close).classList.remove('active');
+    });
+  });
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.remove('active');
+    });
+  });
+
+  // ---- Novo Form ----
+  document.getElementById('btn-novo-form').addEventListener('click', () => {
+    document.getElementById('modal-form-titulo').textContent = 'Novo Form';
+    document.getElementById('edit-form-id').value = '';
+    document.getElementById('field-titulo').value = '';
+    document.getElementById('field-link').value = '';
+    document.getElementById('field-descricao').value = '';
+    document.getElementById('modal-form').classList.add('active');
+  });
+
+  // Editar form
+  window.editarForm = (id) => {
+    const f = todosForms.find(x => x.id === id);
+    if (!f) return;
+    document.getElementById('modal-form-titulo').textContent = 'Editar Form';
+    document.getElementById('edit-form-id').value = id;
+    document.getElementById('field-titulo').value = f.titulo;
+    document.getElementById('field-link').value = f.link;
+    document.getElementById('field-descricao').value = f.descricao || '';
+    document.getElementById('modal-form').classList.add('active');
+  };
+
+  // Salvar form (criar ou editar)
+  document.getElementById('btn-salvar-form').addEventListener('click', async () => {
+    const id       = document.getElementById('edit-form-id').value;
+    const titulo   = document.getElementById('field-titulo').value.trim();
+    const link     = document.getElementById('field-link').value.trim();
+    const descricao= document.getElementById('field-descricao').value.trim();
+
+    if (!titulo || !link) return toast('Título e link são obrigatórios.', 'warning');
+
+    try {
+      if (id) {
+        await atualizarForm(id, { titulo, link, descricao });
+        toast('Form atualizado!', 'success');
+      } else {
+        await criarForm({ titulo, link, descricao, criadoPor: adminId });
+        toast('Form criado!', 'success');
+      }
+      document.getElementById('modal-form').classList.remove('active');
+      await carregarDados();
+    } catch(e) {
+      toast('Erro ao salvar form.', 'error');
+    }
+  });
+
+  // ---- Excluir Form ----
+  window.confirmarExcluir = (id, nome) => {
+    document.getElementById('excluir-form-id').value = id;
+    document.getElementById('excluir-form-nome').textContent = '"' + nome + '"';
+    document.getElementById('modal-excluir').classList.add('active');
+  };
+
+  document.getElementById('btn-confirmar-excluir').addEventListener('click', async () => {
+    const id = document.getElementById('excluir-form-id').value;
+    try {
+      await excluirForm(id);
+      toast('Form excluído com sucesso.', 'success');
+      document.getElementById('modal-excluir').classList.remove('active');
+      await carregarDados();
+    } catch(e) {
+      toast('Erro ao excluir form.', 'error');
+    }
+  });
+
+  // ---- Liberar Form ----
+  window.abrirLiberar = async (id, nome) => {
+    document.getElementById('liberar-form-id').value = id;
+    document.getElementById('liberar-form-nome').textContent = 'Form: ' + nome;
+    document.getElementById('tipo-liberacao').value = 'todos';
+    document.getElementById('grupo-turma').style.display = 'none';
+    document.getElementById('grupo-aluno').style.display = 'none';
+
+    // Popula selects
+    const selTurma = document.getElementById('select-turma');
+    selTurma.innerHTML = todasTurmas.map(t => `<option value="${t}">${t}</option>`).join('') || '<option value="">Sem turmas cadastradas</option>';
+
+    const selAluno = document.getElementById('select-aluno');
+    selAluno.innerHTML = todosAlunos.map(a => `<option value="${a.id}">${escHtml(a.nome)} (${escHtml(a.turma||'sem turma')})</option>`).join('') || '<option value="">Sem alunos cadastrados</option>';
+
+    document.getElementById('modal-liberar').classList.add('active');
+  };
+
+  document.getElementById('tipo-liberacao').addEventListener('change', function() {
+    document.getElementById('grupo-turma').style.display = this.value==='turma' ? 'block' : 'none';
+    document.getElementById('grupo-aluno').style.display = this.value==='aluno' ? 'block' : 'none';
+  });
+
+  document.getElementById('btn-confirmar-liberar').addEventListener('click', async () => {
+    const formId         = document.getElementById('liberar-form-id').value;
+    const tipoLiberacao  = document.getElementById('tipo-liberacao').value;
+    const turma          = tipoLiberacao==='turma' ? document.getElementById('select-turma').value : null;
+    const alunoId        = tipoLiberacao==='aluno' ? document.getElementById('select-aluno').value : null;
+
+    if (tipoLiberacao==='turma' && !turma) return toast('Selecione uma turma.', 'warning');
+    if (tipoLiberacao==='aluno' && !alunoId) return toast('Selecione um aluno.', 'warning');
+
+    try {
+      await liberarForm({ formId, tipoLiberacao, turma, alunoId, liberadoPor: adminId });
+      toast('Form liberado com sucesso!', 'success');
+      document.getElementById('modal-liberar').classList.remove('active');
+      await carregarDados();
+    } catch(e) {
+      toast('Erro ao liberar form.', 'error');
+    }
+  });
+
+  // ---- Bloquear Form ----
+  window.abrirBloquear = async (id, nome) => {
+    document.getElementById('bloquear-form-nome').textContent = 'Form: ' + nome;
+    const container = document.getElementById('lista-liberacoes-ativas');
+    container.innerHTML = 'Carregando...';
+    document.getElementById('modal-bloquear').classList.add('active');
+
+    const libs = await listarLiberacoesDoForm(id);
+    if (libs.length === 0) {
+      container.innerHTML = '<p style="color:#64748b;text-align:center;padding:20px 0;">Nenhuma liberação ativa para este form.</p>';
+      return;
+    }
+
+    container.innerHTML = libs.map(lib => {
+      let desc = '';
+      if (lib.tipoLiberacao==='todos') desc = '👥 Todos os alunos';
+      else if (lib.tipoLiberacao==='turma') desc = `🏫 Turma: ${lib.turma}`;
+      else {
+        const a = todosAlunos.find(x => x.id===lib.alunoId);
+        desc = `👤 Aluno: ${a ? a.nome : lib.alunoId}`;
+      }
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e2e8f0;">
+        <span style="font-size:14px;">${desc}</span>
+        <button class="btn btn-danger btn-sm" onclick="bloquearLib('${lib.id}','${id}','${escHtml(nome)}')">Bloquear</button>
+      </div>`;
+    }).join('');
+  };
+
+  window.bloquearLib = async (libId, formId, nome) => {
+    try {
+      await bloquearLiberacao(libId);
+      toast('Liberação bloqueada!', 'success');
+      await abrirBloquear(formId, nome); // Recarrega a lista
+      await carregarDados();
+    } catch(e) {
+      toast('Erro ao bloquear.', 'error');
+    }
+  };
+
+  // ---- Logout ----
+  document.getElementById('btn-logout').addEventListener('click', logout);
+
+  // ---- Init ----
+  await carregarDados();
+</script>
+
+</body>
+</html>
