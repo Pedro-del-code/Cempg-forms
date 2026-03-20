@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CEPMG Forms – Meu Perfil</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">
+    <img src="logo.png" alt="CEPMG" style="width:36px;height:36px;object-fit:contain;border-radius:8px;"/>
+    <span>CEPMG Forms</span>
+  </div>
+  <div class="navbar-info">
+    <div class="user-badge">
+      <div class="avatar" id="nav-avatar">?</div>
+      <span class="user-name" id="nav-nome">Carregando...</span>
+    </div>
+    <button class="btn-logout" id="btn-logout">Sair</button>
+  </div>
+</nav>
+
+<div class="main-content" style="max-width:500px">
+
+  <h2 class="section-title">👤 Meu Perfil</h2>
+
+  <div class="card">
+    <div class="card-body">
+
+      <!-- Avatar -->
+      <div class="perfil-avatar-container">
+        <div class="perfil-avatar" id="perfil-avatar" onclick="document.getElementById('input-foto').click()">
+          <span id="avatar-inicial">?</span>
+          <div class="perfil-avatar-overlay">📷</div>
+        </div>
+        <span class="upload-hint">Clique na foto para alterar</span>
+        <input type="file" id="input-foto" accept="image/*" style="display:none"/>
+        <div id="upload-progress" style="display:none;font-size:13px;color:var(--verde-primario);font-weight:600;">Enviando foto...</div>
+      </div>
+
+      <!-- Formulário -->
+      <div class="form-group">
+        <label>Nome completo</label>
+        <input type="text" id="field-nome" placeholder="Seu nome completo"/>
+      </div>
+
+      <div class="form-group">
+        <label>Turma</label>
+        <input type="text" id="field-turma" placeholder="Ex: 9A, 8B, 7C"/>
+      </div>
+
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="field-email" disabled style="opacity:0.6;cursor:not-allowed;"/>
+      </div>
+
+      <button class="btn btn-primary" id="btn-salvar">💾 Salvar alterações</button>
+
+      <div style="margin-top:16px;text-align:center;">
+        <a href="aluno.html" style="font-size:14px;color:var(--cinza-texto);">← Voltar para o painel</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div id="toast-container"></div>
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+</div>
+
+<script type="module">
+  import { verificarAuth, logout, getDadosUsuario } from './js/auth.js';
+  import { db } from './js/firebase-config.js';
+  import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const CLOUDINARY_CLOUD = 'dkiwaxtac';
+  const CLOUDINARY_PRESET = 'cepmg-fotos';
+
+  const loading = document.getElementById('loading');
+  const show = () => loading.classList.add('active');
+  const hide = () => loading.classList.remove('active');
+
+  function toast(msg, tipo = 'info') {
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    const el = document.createElement('div');
+    el.className = `toast ${tipo}`;
+    el.innerHTML = `<span class="toast-icon">${icons[tipo]}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  let userId;
+  let dadosAtuais;
+
+  // Verifica auth
+  try {
+    const { user, dados } = await verificarAuth('aluno');
+    userId = user.uid;
+    dadosAtuais = dados;
+    preencherPerfil(dados);
+  } catch(e) {
+    window.location.href = 'index.html';
+  }
+
+  function preencherPerfil(dados) {
+    document.getElementById('field-nome').value  = dados.nome  || '';
+    document.getElementById('field-turma').value = dados.turma || '';
+    document.getElementById('field-email').value = dados.email || '';
+    document.getElementById('nav-nome').textContent = dados.nome.split(' ')[0];
+
+    atualizarAvatar(dados);
+  }
+
+  function atualizarAvatar(dados) {
+    const avatarEl = document.getElementById('perfil-avatar');
+    const navAvatar = document.getElementById('nav-avatar');
+    const inicial = (dados.nome || '?').charAt(0).toUpperCase();
+
+    if (dados.fotoUrl) {
+      avatarEl.innerHTML = `<img src="${dados.fotoUrl}" alt="foto"/><div class="perfil-avatar-overlay">📷</div>`;
+      navAvatar.innerHTML = `<img src="${dados.fotoUrl}" alt="foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`;
+    } else {
+      document.getElementById('avatar-inicial').textContent = inicial;
+      navAvatar.textContent = inicial;
+    }
+  }
+
+  // Upload foto para Cloudinary
+  document.getElementById('input-foto').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return toast('Foto muito grande! Máximo 5MB.', 'warning');
+
+    document.getElementById('upload-progress').style.display = 'block';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+      formData.append('folder', 'cepmg-perfis');
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (data.secure_url) {
+        // Salva URL no Firestore
+        await updateDoc(doc(db, 'usuarios', userId), { fotoUrl: data.secure_url });
+        dadosAtuais.fotoUrl = data.secure_url;
+        atualizarAvatar(dadosAtuais);
+        toast('Foto atualizada!', 'success');
+      } else {
+        toast('Erro ao enviar foto.', 'error');
+      }
+    } catch(err) {
+      toast('Erro ao enviar foto.', 'error');
+    } finally {
+      document.getElementById('upload-progress').style.display = 'none';
+    }
+  });
+
+  // Salvar nome e turma
+  document.getElementById('btn-salvar').addEventListener('click', async () => {
+    const nome  = document.getElementById('field-nome').value.trim();
+    const turma = document.getElementById('field-turma').value.trim().toUpperCase();
+
+    if (!nome || !turma) return toast('Preencha nome e turma.', 'warning');
+
+    show();
+    try {
+      await updateDoc(doc(db, 'usuarios', userId), { nome, turma });
+      toast('Perfil atualizado!', 'success');
+      document.getElementById('nav-nome').textContent = nome.split(' ')[0];
+    } catch(e) {
+      toast('Erro ao salvar.', 'error');
+    } finally {
+      hide();
+    }
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', logout);
+</script>
+
+</body>
+</html>

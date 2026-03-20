@@ -5,49 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CEPMG Forms – Painel do Aluno</title>
   <link rel="stylesheet" href="style.css"/>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>"/>
 </head>
 <body>
 
-<!-- Navbar -->
 <nav class="navbar">
   <div class="navbar-brand">
-    <div class="nav-icon">📋</div>
+    <img src="logo.png" alt="CEPMG" style="width:36px;height:36px;object-fit:contain;border-radius:8px;"/>
     <span>CEPMG Forms</span>
   </div>
   <div class="navbar-info">
     <div class="user-badge">
-      <div class="avatar" id="user-avatar">?</div>
+      <a href="perfil.html" title="Editar perfil">
+        <div class="avatar" id="user-avatar">?</div>
+      </a>
       <span class="user-name" id="user-nome">Carregando...</span>
-      <span class="badge badge-blue" id="user-turma"></span>
+      <span class="badge badge-green" id="user-turma"></span>
     </div>
     <button class="btn-logout" id="btn-logout">Sair</button>
   </div>
 </nav>
 
-<!-- Conteúdo principal -->
 <div class="main-content">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+    <h2 class="section-title" style="margin-bottom:0;">📚 Meus Forms Disponíveis</h2>
+    <a href="perfil.html" class="btn btn-outline btn-sm">👤 Meu Perfil</a>
+  </div>
 
-  <h2 class="section-title">📚 Meus Forms Disponíveis</h2>
-
-  <!-- Grid de cards -->
   <div id="forms-container">
-    <!-- Cards injetados via JS -->
     <div class="empty-state" id="loading-forms">
       <div class="spinner" style="margin:0 auto 16px;"></div>
       <p>Carregando forms disponíveis...</p>
     </div>
   </div>
-
 </div>
 
-<!-- Toast -->
 <div id="toast-container"></div>
-
-<!-- Loading -->
-<div class="loading-overlay" id="loading">
-  <div class="spinner"></div>
-</div>
 
 <script type="module">
   import { verificarAuth, logout } from './js/auth.js';
@@ -57,47 +49,44 @@
     const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
     const el = document.createElement('div');
     el.className = `toast ${tipo}`;
-    el.innerHTML = `<span class="toast-icon">${icons[tipo]||'ℹ️'}</span><span>${msg}</span>`;
+    el.innerHTML = `<span class="toast-icon">${icons[tipo]}</span><span>${msg}</span>`;
     document.getElementById('toast-container').appendChild(el);
     setTimeout(() => el.remove(), 4000);
   }
 
-  // Verifica autenticação (apenas alunos)
-  let dadosAluno;
-  try {
-    const { dados } = await verificarAuth('aluno');
-    dadosAluno = dados;
-
-    // Preenche navbar
-    document.getElementById('user-nome').textContent = dados.nome.split(' ')[0];
-    document.getElementById('user-avatar').textContent = dados.nome.charAt(0).toUpperCase();
-    document.getElementById('user-turma').textContent = dados.turma || 'Sem turma';
-
-    // Carrega os forms
-    await carregarForms(dados);
-
-  } catch (e) {
-    window.location.href = 'index.html';
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  async function carregarForms(dados) {
+  try {
+    const { dados } = await verificarAuth('aluno');
+
+    // Navbar
+    document.getElementById('user-nome').textContent = dados.nome.split(' ')[0];
+    document.getElementById('user-turma').textContent = dados.turma || 'Sem turma';
+
+    const avatarEl = document.getElementById('user-avatar');
+    if (dados.fotoUrl) {
+      avatarEl.innerHTML = `<img src="${dados.fotoUrl}" alt="foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`;
+    } else {
+      avatarEl.textContent = dados.nome.charAt(0).toUpperCase();
+    }
+
+    // Forms
+    const forms = await listarFormsDoAluno(dados.id, dados.turma);
     const container = document.getElementById('forms-container');
-    try {
-      const forms = await listarFormsDoAluno(dados.id, dados.turma);
 
-      if (forms.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-icon">📭</div>
-            <h3>Nenhum form disponível no momento</h3>
-            <p>Aguarde seu professor liberar atividades para você.</p>
-          </div>`;
-        return;
-      }
-
-      const icones = ['📝', '📊', '🗒️', '📋', '✏️', '📐', '🔬', '📖', '🧪', '🎯'];
+    if (forms.length === 0) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>Nenhum form disponível no momento</h3>
+        <p>Aguarde seu professor liberar atividades para você.</p>
+      </div>`;
+    } else {
+      const icones = ['📝','📊','🗒️','📋','✏️','📐','🔬','📖','🧪','🎯'];
       container.innerHTML = `<div class="forms-grid">${
-        forms.map((f, i) => `
+        forms.map((f,i) => `
           <div class="form-card">
             <div class="form-card-header">
               <div class="form-icon">${icones[i % icones.length]}</div>
@@ -112,22 +101,12 @@
           </div>
         `).join('')
       }</div>`;
-
-    } catch (err) {
-      container.innerHTML = `<div class="empty-state">
-        <div class="empty-icon">⚠️</div>
-        <h3>Erro ao carregar forms</h3>
-        <p>Tente recarregar a página.</p>
-      </div>`;
     }
+  } catch(e) {
+    window.location.href = 'index.html';
   }
 
   document.getElementById('btn-logout').addEventListener('click', logout);
-
-  function escHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
 </script>
 
 </body>
