@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CEPMG Forms – Login</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>"/>
+</head>
+<body>
+
+<div class="auth-container">
+  <div class="auth-card">
+
+    <!-- Logo -->
+    <div class="auth-logo">
+      <div class="logo-icon">📋</div>
+      <h1>CEPMG Forms</h1>
+      <p>Acesse com sua conta escolar</p>
+    </div>
+
+    <!-- Formulário de Login -->
+    <form id="form-login" novalidate>
+
+      <div class="form-group">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com" required autocomplete="email"/>
+      </div>
+
+      <div class="form-group">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" placeholder="••••••••" required autocomplete="current-password"/>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="btn-login">
+        <span>Entrar</span>
+      </button>
+
+    </form>
+
+    <div class="divider">ou</div>
+
+    <!-- Login com Google -->
+    <button class="btn btn-google" id="btn-google">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google"/>
+      Entrar com Google
+    </button>
+
+    <!-- Link para cadastro -->
+    <div class="auth-footer">
+      Aluno novo? <a href="cadastro.html">Criar conta</a>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <p style="color:#1a56db;font-weight:600;">Entrando...</p>
+</div>
+
+<script type="module">
+  import { loginEmail, loginGoogle, verificarAuth } from './js/auth.js';
+
+  // Verifica se já está logado → redireciona
+  import { auth } from './js/firebase-config.js';
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getDadosUsuario } from './js/auth.js';
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const dados = await getDadosUsuario(user.uid);
+      if (dados) {
+        window.location.href = dados.tipo === 'admin' ? 'admin.html' : 'aluno.html';
+      }
+    }
+  });
+
+  // Helpers
+  const loading = document.getElementById('loading');
+  const show = () => loading.classList.add('active');
+  const hide = () => loading.classList.remove('active');
+
+  function toast(msg, tipo = 'info') {
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    const el = document.createElement('div');
+    el.className = `toast ${tipo}`;
+    el.innerHTML = `<span class="toast-icon">${icons[tipo]||'ℹ️'}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  // Login email/senha
+  document.getElementById('form-login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const senha = document.getElementById('senha').value;
+    if (!email || !senha) return toast('Preencha todos os campos.', 'warning');
+    show();
+    try {
+      const user = await loginEmail(email, senha);
+      const dados = await getDadosUsuario(user.uid);
+      window.location.href = dados.tipo === 'admin' ? 'admin.html' : 'aluno.html';
+    } catch (err) {
+      hide();
+      const msgs = {
+        'auth/user-not-found': 'Usuário não encontrado.',
+        'auth/wrong-password': 'Senha incorreta.',
+        'auth/invalid-email': 'E-mail inválido.',
+        'auth/too-many-requests': 'Muitas tentativas. Tente mais tarde.',
+      };
+      toast(msgs[err.code] || 'Erro ao entrar. Verifique os dados.', 'error');
+    }
+  });
+
+  // Login com Google
+  document.getElementById('btn-google').addEventListener('click', async () => {
+    show();
+    try {
+      const user = await loginGoogle();
+      const dados = await getDadosUsuario(user.uid);
+      window.location.href = dados.tipo === 'admin' ? 'admin.html' : 'aluno.html';
+    } catch (err) {
+      hide();
+      toast('Erro ao entrar com Google.', 'error');
+    }
+  });
+</script>
+
+</body>
+</html>
